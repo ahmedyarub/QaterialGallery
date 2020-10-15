@@ -13,9 +13,6 @@ cmake_minimum_required(VERSION 3.14.0 FATAL_ERROR)
 # └──────────────────────────────────────────────────────────────────┘
 
 set(QATERIALGALLERY_PROJECT "QaterialGallery" CACHE STRING "Qaterial Gallery Project Name")
-set(QATERIALGALLERY_TARGET ${QATERIALGALLERY_PROJECT} CACHE STRING "Qaterial Gallery Target Name")
-set(QATERIALGALLERY_BUILD_SHARED OFF CACHE BOOL "Build as a shared library")
-set(QATERIALGALLERY_BUILD_STATIC OFF CACHE BOOL "Build as a static library")
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │                       VERSION                                    │
@@ -30,23 +27,39 @@ set(QATERIALGALLERY_VERSION ${QATERIALGALLERY_VERSION_MAJOR}.${QATERIALGALLERY_V
 project(${QATERIALGALLERY_PROJECT} VERSION ${QATERIALGALLERY_VERSION} LANGUAGES CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# ──── PRE BUILD PLATFORM DEPENDANCIES ────
+set(QATERIALGALLERY_TARGET ${QATERIALGALLERY_PROJECT} CACHE STRING "Qaterial Gallery Target Name")
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Android")
+  set(QATERIALGALLERY_BUILD_SHARED ON CACHE BOOL "Build as a shared library (Default for Android build)" FORCE)
+else()
+  set(QATERIALGALLERY_BUILD_SHARED OFF CACHE BOOL "Build as a shared library")
+endif()
+set(QATERIALGALLERY_BUILD_STATIC OFF CACHE BOOL "Build as a static library")
 
-include(platform/PreBuildPlatform.cmake)
+set(QATERIALGALLERY_IGNORE_ENV OFF CACHE BOOL "The executable will discard system qt, and will try to use qt binary deploy along the target. Should be ON when deploying installer")
+set(QATERIALGALLERY_ENABLE_PCH ON CACHE BOOL
+ "Enable precompile headers support for 'QaterialGallery'. \"
+ Only work if CMake support 'target_precompile_headers'. \"
+ This can speed up compilation time.")
 
 # ┌──────────────────────────────────────────────────────────────────┐
-# │                         QT5 CMAKE                                │
+# │                       DEPENDENCIES                               │
 # └──────────────────────────────────────────────────────────────────┘
 
-find_package(Qt5Core            CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
-find_package(Qt5Gui             CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
-find_package(Qt5Qml             CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
-find_package(Qt5QmlWorkerScript CONFIG QUIET    NO_CMAKE_SYSTEM_PATH) # Only from qt5.14
-find_package(Qt5Quick           CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
-find_package(Qt5QuickControls2  CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
-find_package(Qt5Svg             CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
-find_package(Qt5Xml             CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
-find_package(Qt5QuickCompiler   CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
+find_package(Qt5 REQUIRED COMPONENTS
+  Core
+  Qml
+  Gui
+  Quick
+  QuickControls2
+  Svg
+  Xml
+  QuickCompiler
+)
+find_package(Qt5 QUIET COMPONENTS QmlWorkerScript)
+
+include(cmake/Dependencies.cmake)
+include(cmake/FetchSpdlog.cmake)
+include(cmake/FetchQaterial.cmake)
 
 # ┌──────────────────────────────────────────────────────────────────┐
 # │                       STATUS                                     │
@@ -57,6 +70,7 @@ find_package(Qt5QuickCompiler   CONFIG REQUIRED NO_CMAKE_SYSTEM_PATH)
 message(STATUS "------ ${QATERIALGALLERY_TARGET} v${QATERIALGALLERY_VERSION} Configuration ------")
 message(STATUS "QATERIALGALLERY_BUILD_SHARED           : ${QATERIALGALLERY_BUILD_SHARED}")
 message(STATUS "QATERIALGALLERY_BUILD_STATIC           : ${QATERIALGALLERY_BUILD_STATIC}")
+message(STATUS "QATERIALGALLERY_IGNORE_ENV             : ${QATERIALGALLERY_IGNORE_ENV}")
 message(STATUS "------ ${QATERIALGALLERY_TARGET} End Configuration ------")
 
 # ──── CHECK CONFLICT ────
@@ -69,23 +83,35 @@ endif()
 # │                       SOURCES                                    │
 # └──────────────────────────────────────────────────────────────────┘
 
-qtquick_compiler_add_resources(QATERIALGALLERY_QML_RES ${CMAKE_CURRENT_SOURCE_DIR}/qml/QaterialGallery.qrc)
-file(GLOB_RECURSE QATERIALGALLERY_QML_SRCS qml/*.qml)
+qt_generate_qmldir(QATERIALGALLERY_QMLDIR_FILE
+ SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/qml/Qaterial
+ MODULE "QaterialGallery")
+
+qt_generate_qrc(QATERIALGALLERY_QML_QRC
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/qml/QaterialGallery
+  DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/QaterialGalleryGenerated
+  NAME QaterialGallery.qrc
+  PREFIX "QaterialGallery"
+  GLOB_EXPRESSION "*.qml;qmldir"
+  RECURSE)
+
+qt_generate_qrc(QATERIALGALLERY_RES_QML_QRC
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/qml/QaterialGallery
+  DEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/QaterialGalleryGenerated
+  NAME QaterialGalleryRes.qrc
+  PREFIX "QaterialGallery"
+  GLOB_EXPRESSION "*.png;*svg"
+  RECURSE)
+
+qtquick_compiler_add_resources(QATERIALGALLERY_QML_RES ${QATERIALGALLERY_QML_QRC})
+file(GLOB_RECURSE QATERIALGALLERY_QML_SRCS qml/QaterialGallery/*.qml)
 source_group("Qml" FILES "${QATERIALGALLERY_QML_SRCS}")
 
 set(QATERIALGALLERY_SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Main.cpp
   ${QATERIALGALLERY_QML_RES}
-  # QATERIALGALLERY_QML_SRCS is optionnal, it's only for them to show in visual studio or xcode
-  ${QATERIALGALLERY_QML_SRCS}
-  ${QATERIALGALLERY_PLATFORM_SRCS}
-  )
-
-# Trick to rerun cmake each time QaterialGallery.qrc is updated
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/qml/QaterialGallery.qrc
-  ${CMAKE_CURRENT_BINARY_DIR}/QaterialGallery.qrc.junk
-  )
+  ${QATERIALGALLERY_RES_QML_QRC}
+)
 
 # Dont Run Moc on cpp file generated from qml
 foreach(GENERATED_RES ${QATERIALGALLERY_QML_RES})
@@ -110,61 +136,26 @@ endif()
 # ──── SETTINGS ────
 
 target_compile_features(${QATERIALGALLERY_TARGET} PUBLIC cxx_std_11)
-# set output directories for all builds (Debug, Release, etc.)
-foreach(_CONFIG ${CMAKE_CONFIGURATION_TYPES})
-  string(TOUPPER ${_CONFIG} _CONFIG_UPPER)
-  set_target_properties(${QATERIALGALLERY_TARGET}
-    PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY_${_CONFIG_UPPER} "${PROJECT_BINARY_DIR}/${_CONFIG}/lib"
-    LIBRARY_OUTPUT_DIRECTORY_${_CONFIG_UPPER} "${PROJECT_BINARY_DIR}/${_CONFIG}/lib"
-    RUNTIME_OUTPUT_DIRECTORY_${_CONFIG_UPPER} "${PROJECT_BINARY_DIR}/${_CONFIG}/bin"
-  )
-endforeach()
 
-# ──── QT ────
-
-set_target_properties(${QATERIALGALLERY_TARGET} PROPERTIES AUTOMOC TRUE AUTORCC TRUE)
-target_link_libraries(${QATERIALGALLERY_TARGET} PRIVATE
-  Qt5::Core
-  Qt5::Gui
-  Qt5::Svg
-  Qt5::Xml
-  Qt5::Qml
-  Qt5::Quick
-  Qt5::QuickControls2
-  )
-
-# Correctly link to static qt
-get_target_property(QT_TARGET_TYPE Qt5::Core TYPE)
-if(${QT_TARGET_TYPE} STREQUAL "STATIC_LIBRARY")
-  include(cmake/FetchQtStaticCMake.cmake)
-  qt_generate_qml_plugin_import(${QATERIALGALLERY_TARGET}
-    QML_SRC ${CMAKE_CURRENT_SOURCE_DIR}/qml
-    EXTRA_PLUGIN
-      QtQuickVirtualKeyboardPlugin
-      QtQuickVirtualKeyboardSettingsPlugin
-      QtQuickVirtualKeyboardStylesPlugin
-      QmlFolderListModelPlugin
-      QQuickLayoutsPlugin
-    VERBOSE
-    )
-  qt_generate_plugin_import(${QATERIALGALLERY_TARGET} VERBOSE)
+if(QATERIALGALLERY_IGNORE_ENV)
+  message(STATUS "The executable will discard every ")
+  target_compile_definitions(${QATERIALGALLERY_TARGET} PRIVATE -DQATERIALGALLERY_IGNORE_ENV)
 endif()
 
-if(TARGET Qt5::QmlWorkerScript)
-  target_link_libraries(${QATERIALGALLERY_TARGET} PRIVATE Qt5::QmlWorkerScript)
+if(QATERIALGALLERY_ENABLE_PCH AND COMMAND target_precompile_headers)
+  target_precompile_headers(${QATERIALGALLERY_TARGET} PRIVATE include/QaterialGallery/Pch/Pch.hpp)
 endif()
 
-# ──── OTHER DEPENDENCIES ────
+# ──── DEPENDENCIES ────
 
-include(cmake/FetchSpdlog.cmake)
-include(cmake/FetchQaterial.cmake)
-
+set_target_properties(${QATERIALGALLERY_TARGET} PROPERTIES
+  AUTOMOC TRUE
+  AUTORCC TRUE)
 target_link_libraries(${QATERIALGALLERY_TARGET} PRIVATE
   Qaterial
   spdlog
-  )
+)
 
 # ────────── POST BUILD PLATFORM DEPENDANCIES ─────────────
 
-include(platform/PostBuildPlatform.cmake)
+include(platforms/Deploy.cmake)
