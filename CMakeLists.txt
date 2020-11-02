@@ -156,6 +156,6 @@ target_link_libraries(${QATERIALGALLERY_TARGET} PRIVATE
   spdlog
 )
 
-# ────────── POST BUILD PLATFORM DEPENDANCIES ─────────────
+# ────────── POST BUILD PLATFORM DEPENDENCIES ─────────────
 
 include(platforms/Deploy.cmake)
