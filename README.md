@@ -2,15 +2,17 @@
 
 [![CI](https://github.com/OlivierLDff/QaterialGallery/workflows/CI/badge.svg)](https://github.com/OlivierLDff/QaterialGallery/actions?query=workflow%3ACI)
 
+[![downloadappstore](https://user-images.githubusercontent.com/17255804/98216721-b97d4380-1f49-11eb-9d38-483069cbb4e4.png)](https://apps.apple.com/us/app/qaterial-gallery/id1538406440)
+
 QaterialGallery is a showcase application and contains example for the library Qaterial . It is still under development. This library is hard fork of previous library QQuickMaterialHelper.
 
 This project also showcase multiplatform deployment with Qt.
 
-- [x] Windows
-- [ ] Linux *(Compile but no deployment)*
+- [x] Windows (Installer)
+- [x] Linux (AppImage)
 - [ ] macOs *(Compile but no deployment)*
-- [x] iOs
-- [x] Android
+- [x] iOs (App & Ipa)
+- [x] Android (Apk)
 
 ## Components
 
@@ -255,7 +257,7 @@ If you installed official Qt binary, Qt Sdk binary is located in:
 
 ```bash
 export QT_USER_ID=$(id -un)
-export QT_IOS_VERSION=5.12.0
+export QT_IOS_VERSION=5.15.1
 export QT_IOS_DIR=/Users/$QT_USER_ID/Qt/$QT_IOS_VERSION/ios
 ```
 
@@ -265,12 +267,11 @@ Then simply run CMake with [this toolchain](https://github.com/OlivierLDff/IosCM
 
 ```bash
 cmake -DCMAKE_PREFIX_PATH=$QT_IOS_DIR \
--DDEPLOYMENT_TARGET=11.0 \
+-DDEPLOYMENT_TARGET=12.0 \
 -DCMAKE_TOOLCHAIN_FILE=/path/to/ios.toolchain.cmake \
 -DPLATFORM=OS64COMBINED \
 -DENABLE_BITCODE=FALSE \
 -DTEAM_ID=AAAAAAAA \
--DSTATIC_QT=ON \
 -G "XCode" \
 path/to/Projet/
 ```
@@ -285,14 +286,7 @@ cmake --build . --config Release
 
 or launch the generated XCode project.
 
-**Notes**
-
-- **OS64COMBINED** is only available if you are using CMake 3.14+.
-- Generator **XCode** is required to sign app and create a bundle app.
-- Replace **TEAM_ID** with your id. Run `/usr/bin/env xcrun security find-identity -v -p codesigning` to see availables Ids.
-- **Qt 5.12**:
-  - If you use prebuild qt ios library, then bitcode is disabled.
-  - Library is build with minimum Os support 11.0. You need to do the same.
+Ipa will be located in `QaterialGalleryIpa/Qaterial.ipa`.
 
 ## Configuration
 
@@ -305,8 +299,6 @@ or launch the generated XCode project.
 * **QATERIALGALLERY_BUILD_EXE** : Build as an executable [ON OFF]. *Default: ON*.
 * **QATERIALGALLERY_PROJECT** : Name of the project. *Default: QaterialGallery*.
 * **QATERIALGALLERY_TARGET** : Name of the project. *Default: QaterialGallery*.
-* **QATERIALGALLERY_USE_NAMESPACE** : Should the library be compiled with a namespace. *Default: ON*.
-* **QATERIALGALLERY_NAMESPACE** : Namespace of the library ig **QATERIALGALLERY_USE_NAMESPACE** is ON. *Default : Qqmh.*
 
 ### Dependencies
 
